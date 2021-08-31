@@ -3,7 +3,7 @@ Control of flow in GAS x86
 
 # Introduction
 
-# Background Exercises
+## Background Exercises
 
 Start by cloning the lab and changing into the directory if you have not done
 so already:
@@ -23,7 +23,7 @@ files contain examples of common constructs we use in programming such as:
 
 with some comments about how we might optimize it.
 
-## Branching in x86
+### Branching in x86
 
 The `%rip` is register that points to the next instruction to be executed. An
 intuitive way to move `%rip` would be to perform arithmetic on it, such as
@@ -43,7 +43,7 @@ types of instructions which move the instruction pointer:
 * Unconditional aka jumps
 * Conditional aka branches
 
-### Unconditional branches
+#### Unconditional branches
 
 Unconditional branching is a unary command (accepts one argument) where you
 provide the label to jump to. For example:
@@ -54,7 +54,7 @@ jmp	.L3
 
 Jump to whatever is labelled `.L3`.
 
-### Conditional branches
+#### Conditional branches
 
 Conditional branching in x86 is a two-step process. Surprisingly it is more
 complicated than MIPS which specifies a conditional branch in a single
@@ -101,7 +101,7 @@ If the statement is `True`, the jump will be performed. If the statement is
 `False`, the instruction pointer will instead move the instruction that
 immediately follows the conditional jump. This is called a *fall through*.
 
-## `example_if.s`
+### `example_if.s`
 
 The first example is `example_if.s`. It has a global variable called `badger`
 which is set to integer value 7. The `main()` function checks if the value of
