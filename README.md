@@ -91,7 +91,7 @@ operation sets a flag register. Then, a condition jump is called to implement
 the specific inequality you need. Here is a short summary of them:
 
 | Command  | Inequality | Explanation |
-| ------------- | ------------- |
+| ------------- | ------------- | ------------- |
 | `je`  | `==` | `a - b == 0` |
 | `jne`  | `~=` | `a - b != 0` |
 | `jge`  | `>=` | `a - b >= 0` |
