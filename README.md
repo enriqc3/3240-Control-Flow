@@ -1,7 +1,39 @@
-# 3240-control-flow
-Control of flow in GAS x86
+# CMPS-3240-Control-Flow
 
-# Introduction
+Introduction to control of flow in GAS x86
+
+## Objectives
+
+* Learn how to format conditionals using `cmp` and `j` operations
+* Understand how to construct `if` and `switch` statements at the assembly level
+* Optimize a `while` loop at the assembly level
+
+## Prerequisites
+
+* GAS x86 style of referencing and dereferencing pointers to save variables in memory for global variables
+* Knowledge of the stack is not required
+
+## Requirements
+
+### General
+
+* Familiarity with C-language `if`, `switch` and `while` constructs
+
+### Software
+
+This lab requires the following software: `gcc` version 8.3.0, `make`, `git`.
+
+### Hardware
+
+This lab requires an x86 processor. It will not work on an ARM system (such as a Raspberry Pi).
+
+### OS Compatability
+
+| Linux | Mac | Windows |
+| :--- | :--- | :--- |
+| Yes* | No | Yes, with WSL* |
+
+This lab requires you to assemble an x86 program, the syntax and calling conventions of which are specific down to the operating system and version of `gcc` you are using. This lab was created for a system running Debian GNU/Linux 10 (buster). It may work on Ubuntu.
 
 ## Background Exercises
 
