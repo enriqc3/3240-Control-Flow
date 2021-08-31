@@ -82,12 +82,10 @@ if ( a - b > 0 ) {
 This converts to the following pseudo-assembly code:
 
 ```asm
-cmp a, b # a and b would be replaced by argument names
+cmp b, a # Do a - b
 jg jump_target
 ```
-
-Basically, `cmp` is short hand for a subtraction operation. This subtraction
-operation sets a flag register. Then, a condition jump is called to implement
+*Note that `cmp` order is reversed!* `cmp` is short hand for a subtraction operation. This subtraction operation sets a flag register. Then, a condition jump is called to implement
 the specific inequality you need. Here is a short summary of them:
 
 | Command  | Inequality | Explanation |
@@ -99,15 +97,19 @@ the specific inequality you need. Here is a short summary of them:
 | `jle`  | `<=` | `a - b <= 0` |
 | `jl`  | `<` | `a - b < 0` |
 
+If the statement is `True`, the jump will be performed. If the statement is
+`False`, the instruction pointer will instead move the instruction that
+immediately follows the conditional jump. This is called a *fall through*.
+
 ## `example_if.s`
 
 The first example is `example_if.s`. It has a global variable called `badger`
 which is set to integer value 7. The `main()` function checks if the value of
-`badger` is greater or less than zero, and has `printf()` statements based on
+`badger` is greater or less than ten, and has `printf()` statements based on
 the value of `badger`. Since we know that `badger` is 7, it should display:
 
 ```shell
-Badger is greater than zero!
+Badger is less than or equal to ten!
 ```
 
 The makefile target `example_if.s` will generate our assembly code. Make it if
@@ -121,3 +123,68 @@ gcc -Wall -O0 -S -o example_if.s example_if.c
 and open the file in your favorite text editor. This code:
 
 ```asm
+.LFB0:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register 6
+```
+
+is the creation of `main()`'s stack frame and we can ignore it. The first
+relevant line of code is:
+
+```assembly
+movl	badger(%rip), %eax
+cmpl	$10, %eax
+jle	.L2
+```
+
+The line `movl	badger(%rip), %eax` means to dereference `badger` and place the
+value into `%eax`. `cmpl	$10, %eax` performs the conditional `badger - 10`.
+`jle	.L2` means that if `badger - 10 <= 0` to jump to `.L2`.
+
+In C-language, the operation is `badger > 10`. However, refactoring that based
+on the background discussion it must be `badger - 10 > 0`. *Time out. Why is it
+doing the opposite?* `gcc` wants to maintain the order of the blocks. The `if`
+block should come first, and the `else` block comes second. Thus, if the inverse
+of the condition is true, go to what we think of as the else block. Otherwise,
+fall through into what we think of as the `if` block. You can confirm this by
+noting that the instructions immediately following the `jle` are to:
+
+```assembly
+leaq	.LC0(%rip), %rdi
+movl	$0, %eax
+call	printf@PLT
+jmp	.L3
+```
+
+This is a call to `printf()` and `.LC0` is `"Badger is greater than ten!"`.
+This is the `if` block, not the `else` block. `.L3` is the point where the two
+separate threads of `if` and `else` rejoin into the rest of the program, which
+should just `return 1`.
+
+Moving on, the `jmp` is unconditional. So the next few lines:
+
+```assembly
+.L2:
+	leaq	.LC1(%rip), %rdi
+	movl	$0, %eax
+	call	printf@PLT
+```
+
+can only be naturally reached by a jump (not by falling through). `.LC1` is
+`"Badger is less than or equal to ten!"` so this must be our `else` block. The
+makefile target `example_if.out` will create an executable binary from our
+assembly source:
+
+```shell
+$ make example_if.out
+gcc -Wall -O0 -c -o example_if.o example_if.s
+gcc -Wall -O0 -o example_if.out example_if.o
+$ ./example_if.out
+```
+
+Study this, and move on. Optionally, set `badger` to a value that will get
+the other outcome for our program.
