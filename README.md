@@ -5,13 +5,13 @@ Introduction to control of flow in GAS x86
 ## Objectives
 
 * Learn how to format conditionals using `cmp` and `j` operations
-* Understand how to construct `if` and `switch` statements at the assembly level
+* Understand `if` and `switch` statements at the assembly level
 * Optimize a `while` loop at the assembly level
 
 ## Prerequisites
 
-* GAS x86 style of referencing and dereferencing pointers to save variables in memory for global variables
-* Knowledge of the stack is not required
+* Using global variables with GAS x86 (referencing and dereferencing)
+* Knowledge of the stack is not required (local scope)
 
 ## Requirements
 
@@ -33,7 +33,7 @@ This lab requires an x86 processor. It will not work on an ARM system (such as a
 | :--- | :--- | :--- |
 | Yes* | No | Yes, with WSL* |
 
-This lab requires you to assemble an x86 program, the syntax and calling conventions of which are specific down to the operating system and version of `gcc` you are using. This lab was created for a system running Debian GNU/Linux 10 (buster). It may work on Ubuntu.
+This lab requires you to assemble an x86 program. Syntax and calling conventions are specific down to the operating system and version of `gcc` you are using. This lab was created for a system running Debian GNU/Linux 10 (buster). It may work on Ubuntu (check `gcc` version with `gcc --version`).
 
 ## Background Exercises
 
@@ -41,8 +41,8 @@ Start by cloning the lab and changing into the directory if you have not done
 so already:
 
 ```shell
-$ git clone git@github.com:DrAlbertCruz/3240-control-flow.git
-$ cd 3240-control-flow/
+$ git clone git@github.com:DrAlbertCruz/3240-Control-Flow.git
+$ cd 3240-Control-Flow/
 ```
 
 The following are exercises where we use `gcc` to generate GAS x86 files. The
@@ -52,28 +52,36 @@ files contain examples of common constructs we use in programming such as:
 * `case`
 * `while`
 
-with some comments about how we might optimize it.
+with some comments about how we might optimize it. We do not go over `for` because
+of how similar it is to a `while` loop.
 
 ### Branching in x86
 
 The `%rip` is register that points to the next instruction to be executed. There
-is also a potential pitfall here, watch out for guides online that refer to
+is a potential trap here. Watch out for guides online that refer to
 `%eip`. `%eip` is the 32-bit version of the instruction pointer. However, we
-are working with 64-bit version of x86, so it must be `%rip`.
+are working with 64-bit version of x86, so it must be `%rip`. With x86-64, 
+virtual memory addresses are 64-bits and will need to be stored in 64-bit
+sized registers.
 
-An intuitive way to alter flow is to move `%rip`. The simplest approach is to
+To alter the flow of the program you move `%rip`. The simplest approach is to
 perform arithmetic on it, such as moving it to some arbitrary address:
 
-```x86
+```asm
 movq %rip, label
 ```
 
-which is wrong. You can't directly modify the instruction pointer. It is special.
-You need to specific instructions that perform conditional/comparisons instead.
-There are two types of instructions which move the instruction pointer:
+Or, adding a certain number of bytes to it:
+
+```asm
+addq $4, %rip
+```
+
+However, both are wrong. You can't directly modify the instruction pointer. It is special.
+You need to use specific instructions instead. There are two types of instructions which move the instruction pointer:
 
 * Unconditional aka jumps
-* Conditional aka branches
+* Conditional aka branches (only jump if a condition is true)
 
 #### Unconditional branches
 
@@ -93,10 +101,11 @@ Conditional branching in x86 is a two-step process. Surprisingly it is more
 complicated than MIPS which specifies a conditional branch in a single
 instruction. The two steps are:
 
-* Use a `cmp` command to perform the comparison (it is binary), and
-* Use a conditional jump to move the instruction pointer (it is unary).
+* Use a `cmp` command to do the math for the conditional expression, and
+* Use a conditional jump that checks the result of the previous step against some inequality.
 
-An important note is that when we form conditionals we usually have a left-hand
+The inequality must always be the expression vs. zero, which complicates things a bit. 
+When we form conditionals we usually have a left-hand
 side (LHS) and a right-hand side (RHS). For example:
 
 ```c
@@ -121,8 +130,9 @@ jg jump_target
 Note that with GAS x86 syntax, the source is first and the destination is
 second. So, `b` comes before `a`.  `cmp` is short hand for a subtraction
 operation. This subtraction operation sets a flag register. Then, a conditional
-jump is called to implement the specific inequality you need. Here is a short
-summary of them:
+jump is called to implement the specific inequality you need. It refers to the flag
+register, it does not refer to the contents of the source and destination registers. 
+Here is a short summary of conditional operations:
 
 | Command  | Inequality | Explanation |
 | ------------- | ------------- | ------------- |
@@ -170,7 +180,7 @@ and open the file in your favorite text editor. This code:
 	.cfi_def_cfa_register 6
 ```
 
-is the creation of `main()`'s stack frame and we can ignore it. The first
+is the creation of `main()`'s stack frame and we can ignore it. Ignore it for all following examples. The first
 relevant line of code is:
 
 ```assembly
@@ -180,8 +190,12 @@ jle	.L2
 ```
 
 The line `movl	badger(%rip), %eax` means to dereference `badger` and place the
-value into `%eax`. `cmpl	$10, %eax` performs the conditional `badger - 10`.
-`jle	.L2` means that if `badger - 10 <= 0` to jump to `.L2`.
+value into `%eax`. Note that while `badger(%rip)` is a 64-bit address, an `int` is 32-bits.
+Thus, the operation should be to move only 32-bits, which is why we use `movl` to 
+perform the dereference. `movl` stands for move `long` or double-word, and 32-bits is considered `long`
+for x86. If you did `movq`--move quad-word--it would attempt to read 64 bits from memory. Since
+`badger` is a 32-bit integer it would be an error. `cmpl $10, %eax` performs the conditional `badger - 10`.
+`jle .L2` means that if `badger - 10 <= 0` to jump to `.L2`.
 
 In C-language, the operation is `badger > 10`. However, refactoring that based
 on the background discussion it must be `badger - 10 > 0`. *Time out. Why is it
@@ -235,11 +249,11 @@ as the branch.
 ### `example_switch.s`
 
 The first example is `example_switch.s`. Study `example_switch.c` before moving on.
-This example uses the C-language `switch` construct appears to take only one
+This example uses the C-language `switch` construct. It appears to take only one
 argument on the C-side, and branches based on the equivalent of the argument to
 explicitly given values. The `default` block is what happens if `ibex` is not
 equal to any specified `case` statement. If you haven't already, go ahead and
-make this:
+make the assembly source:
 
 ```shell
 $ make example_switch.s
@@ -273,7 +287,7 @@ $ ./example_switch.out
 Twelve!
 ```
 
-#### Optimization of a switch statement
+#### Optimization of a `switch` statement
 
 There is a very minor optimization that can be performed here. Note that the
 default state has a `jmp` to it's block. Yet, if you fall through after `je	.L7`
@@ -284,7 +298,7 @@ block entirely and change:
 ```asm
 cmpl	$12, %eax
 je	.L3
-jmp	.L7
+jmp	.L7 /* Why do you jump to default? */
 .L2:
 ```
 
@@ -293,22 +307,22 @@ to:
 ```asm
 cmpl	$12, %eax
 je	.L3
-leaq	.LC2(%rip), %rdi
+leaq	.LC2(%rip), %rdi /* Just cut and paste it here ... */
 movl	$0, %eax
 call	printf@PLT
-jmp .L5
+jmp .L5 /* ... end of cut and paste */
 .L2:
 ```
 
 That is, cut and paste the `.L7` block to be in the fall through position of
 `je	.L3`. *But wait, this still has the same number of `jmp` ops?* Note that
 since we have removed the `.L7` block entirely, `.L3` can fall through into
-`.L5` directly, and we do not need to `jmp .L5`. As an optional exercise, repeat the above.
+`.L5` directly, and we do not need to `jmp .L5`. As an optional exercise, repeat the above on your own. Make sure it works the same as before the change.
 
 ### `example_while.s`
 
 Our next stop: a `while` loop. This example will dive off the deep end for sure.
-Start by studying `example_while.c`, then make it if you haven't done so already:
+Start by studying `example_while.c`, then make the assembly code if you haven't done so already:
 
 ```shell
 $ make example_while.s
@@ -319,18 +333,18 @@ and open `example_while.s` in your favorite text editor. Here is what happened
 to our `while` loop:
 
 ```asm
-jmp	.L2
-.L3:
+jmp	.L2 /* Jump to the check for ( counter < 10 ) */
+.L3: /* Start of loop body */
 leaq	.LC0(%rip), %rdi
 movl	$0, %eax
 call	printf@PLT
 movl	counter(%rip), %eax /* Refresh counter */
 addl	$1, %eax /* Counter++ */
 movl	%eax, counter(%rip) /* Save counter */
-.L2:
+.L2: /* Check for ( counter < 10 ) */
 movl	counter(%rip), %eax
 cmpl	$9, %eax
-jle	.L3
+jle	.L3 /* Jump to loop body */
 ```
 
 To start, there is a `jmp .L2`. `.L2` block appears to be the check to see if
@@ -351,9 +365,8 @@ movl	%eax, counter(%rip)
 We see this behavior again where `gcc` refreshes the value of `counter` *every*
 time it is used. Unfortunately, we have to allow this. You might think to reserve
 a specific register for `counter` to save memory read/writes, but there are function
-`call`s. Registers are generally not preserved across function calls. You could
-possibly use the stack to address this problem, but that is two labs from now.
-For now, we will have to ignore this.
+`call`s. Registers are generally not preserved across function calls. We will learn how to preserve
+register values across function calls, but that is two labs from now. For now, we will have to ignore this.
 
 ### Optimization of a `while` loop
 
@@ -369,7 +382,7 @@ jge	loopquit           /* Conditional will check need to EXIT */
 leaq	.LC0(%rip), %rdi /* Loop body is fall through into here, no need for .LC3 */
 movl	$0, %eax
 call	printf@PLT
-movl	counter(%rip), %eax
+movl	counter(%rip), %eax /* Refresh counter */
 addl	$1, %eax
 movl	%eax, counter(%rip)
 jmp looptop            /* Jump up to looptop */
@@ -397,7 +410,8 @@ counter++;
 printf( "Count!" );
 ```
 
-This code is roughly equivalent. On the assembly side this means:
+This code is roughly equivalent. On the assembly side we can rearrange it, and also remove
+the refresh of `counter`:
 
 ```asm
 looptop:               
